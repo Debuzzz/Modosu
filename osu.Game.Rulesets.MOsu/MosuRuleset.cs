@@ -210,6 +210,7 @@ namespace osu.Game.Rulesets.MOsu
                 case ModType.Fun:
                     return new Mod[]
                     {
+                        new OsuModMetronome(),
                         new OsuModFunSpacingAdjust(),
                         new OsuModTransform(),
                         new OsuModWiggle(),

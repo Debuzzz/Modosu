@@ -35,6 +35,8 @@ osu! practice ruleset with unique mods and local PP tracking.
 
 - **Fun Spacing** — like SpacingAdjust, but the spacing multiplier changes over the course of the map. Set a starting spacing (default 1.00x) and an ending spacing (default 2.00x), and it linearly interpolates between the two from the first to the last object — e.g. a map that starts with normal spacing and finishes with much wider jumps.
 
+- **Metronome** — plays a metronome tick on every beat (higher-pitched accent on the downbeat, counting in from one measure before the first object).
+
 - **Live star rating** — HUD element showing cumulative star rating as you play, updating in real-time (like pp counter)
 <img width="480" height="784" alt="livestarrating" src="https://github.com/user-attachments/assets/4b0821d8-2c3a-4dff-bc96-999a8147f346" />
 
