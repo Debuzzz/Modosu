@@ -33,6 +33,8 @@ osu! practice ruleset with unique mods and local PP tracking.
 <img width="480" height="270" alt="nosliding" src="https://github.com/user-attachments/assets/7b0aee7f-8fa5-4ef4-8039-01af0bc10450" />
 <img width="480" height="270" alt="spacingadjust" src="https://github.com/user-attachments/assets/e7d3c1b8-cfc9-4a2e-abd3-a6ffb6c394e5" />
 
+- **Fun Spacing** — like SpacingAdjust, but the spacing multiplier changes over the course of the map. Set a starting spacing (default 1.00x) and an ending spacing (default 2.00x), and it linearly interpolates between the two from the first to the last object — e.g. a map that starts with normal spacing and finishes with much wider jumps.
+
 - **Live star rating** — HUD element showing cumulative star rating as you play, updating in real-time (like pp counter)
 <img width="480" height="784" alt="livestarrating" src="https://github.com/user-attachments/assets/4b0821d8-2c3a-4dff-bc96-999a8147f346" />
 
