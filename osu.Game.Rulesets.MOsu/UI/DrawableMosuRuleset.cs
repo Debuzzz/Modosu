@@ -144,14 +144,18 @@ namespace osu.Game.Rulesets.MOsu.UI
 
 
                 private ScoreManager scoreManager = null!;
+                private RealmAccess realm = null!;
                 private LocalUserManager? localUserManager;
+                private Player? playerRef;
                 private IDisposable? replayFileSubscription;
 
         [BackgroundDependencyLoader]
         private void load(ReplayPlayer? replayPlayer, Player? player, RealmAccess realm, LocalUserManager? localUserManager, ScoreManager? scoreManager)
         {
             this.scoreManager = scoreManager!;
+            this.realm = realm;
             this.localUserManager = localUserManager;
+            this.playerRef = player;
 
             // Attach the recorded replay file to every mosu score that gets saved — pass, the save-on-fail
             // button, or any other import path. Custom rulesets never get replay files from Player.ImportScore
@@ -177,29 +181,6 @@ namespace osu.Game.Rulesets.MOsu.UI
                     localUserManager?.IncrementPlayCount(profileName);
                 }
 
-                void attachReplayFile(Guid scoreId)
-                {
-                    if (player.Score.Replay.Frames.Count == 0)
-                        return;
-
-                    using var stream = new MemoryStream();
-
-                    // LegacyScoreEncoder refuses non-legacy rulesets. The ruleset byte it writes is only used
-                    // when the replay is parsed back (databased scores use the stored ScoreInfo, not the file's),
-                    // so encode under the osu! ruleset identity to get standard OsuReplayFrame playback.
-                    var encodeScore = player.Score.DeepClone();
-                    encodeScore.ScoreInfo.Ruleset = new osu.Game.Rulesets.Osu.OsuRuleset().RulesetInfo;
-                    new LegacyScoreEncoder(encodeScore, playableBeatmap).Encode(stream, leaveOpen: true);
-
-                    stream.Position = 0;
-                    realm.Write(r =>
-                    {
-                        var managed = r.Find<ScoreInfo>(scoreId);
-                        if (managed != null && managed.Files.Count == 0)
-                            scoreManager.AddFile(managed, stream, "replay.osr", r);
-                    });
-                }
-
                 // Fire whenever the score row lands in the database — pass (auto-import before results) and
                 // the save-on-fail button (forced import) both pass through here; Sticks uses the same trigger.
                 //
@@ -216,13 +197,19 @@ namespace osu.Game.Rulesets.MOsu.UI
                         if (!scores.Any() || IsDisposed)
                             return;
 
-                        Schedule(() => attachReplayFile(player.Score.ScoreInfo.ID));
+                        Schedule(() => AttachReplayFile(player.Score.ScoreInfo.ID));
                     });
 
                 // Pass: the score has been recorded and results are being shown.
                 player.OnShowingResults += () =>
                 {
                     countPlay();
+
+                    // Attach synchronously on the way to the results screen: by the time the user is
+                    // looking at the results, the replay file is on the score row — no window in which
+                    // an exit can lose it. If the row hasn't landed yet (import still in flight), this
+                    // is a no-op and the notification path below picks it up.
+                    AttachReplayFile(player.Score.ScoreInfo.ID);
                 };
 
                 // Fail: mirrors upstream's submitFromFailOrQuit on fail.
@@ -352,6 +339,44 @@ namespace osu.Game.Rulesets.MOsu.UI
             return result.Total;
         }
 
+        /// <summary>
+        /// Writes the replay file onto the score's database row. Idempotent: rows that already
+        /// carry files are left untouched, so the notification path, the on-showing-results hook,
+        /// and the dispose-time re-check can all call this safely.
+        /// </summary>
+        private void AddReplayFileToScore(Guid scoreId, Stream stream)
+        {
+            realm.Write(r =>
+            {
+                var managed = r.Find<ScoreInfo>(scoreId);
+                if (managed != null && managed.Files.Count == 0)
+                    scoreManager.AddFile(managed, stream, "replay.osr", r);
+            });
+        }
+
+        /// <summary>
+        /// Encodes the recorded replay and attaches it to the score's database row.
+        /// Safe to call at any point after load (game thread), including from <see cref="Dispose"/>.
+        /// </summary>
+        private void AttachReplayFile(Guid scoreId)
+        {
+            var player = playerRef;
+            if (player == null || player.Score.Replay.Frames.Count == 0)
+                return;
+
+            using var stream = new MemoryStream();
+
+            // LegacyScoreEncoder refuses non-legacy rulesets. The ruleset byte it writes is only used
+            // when the replay is parsed back (databased scores use the stored ScoreInfo, not the file's),
+            // so encode under the osu! ruleset identity to get standard OsuReplayFrame playback.
+            var encodeScore = player.Score.DeepClone();
+            encodeScore.ScoreInfo.Ruleset = new osu.Game.Rulesets.Osu.OsuRuleset().RulesetInfo;
+            new LegacyScoreEncoder(encodeScore, playableBeatmap).Encode(stream, leaveOpen: true);
+
+            stream.Position = 0;
+            AddReplayFileToScore(scoreId, stream);
+        }
+
         public override DrawableHitObject<OsuHitObject>? CreateDrawableRepresentation(OsuHitObject h) => null;
 
         public override bool ReceivePositionalInputAt(Vector2 screenSpacePos) => true; // always show the gameplay cursor
@@ -375,6 +400,16 @@ namespace osu.Game.Rulesets.MOsu.UI
 
         protected override void Dispose(bool isDisposing)
         {
+            if (isDisposing)
+            {
+                // Synchronous re-check on the way out (mirrors Sticks): if the score row has landed
+                // but the async (realm notification) attach hasn't run yet, attach it now — an exit
+                // in that window is exactly how scores got saved without their replay file.
+                var player = playerRef;
+                if (player != null)
+                    AttachReplayFile(player.Score.ScoreInfo.ID);
+            }
+
             replayFileSubscription?.Dispose();
             base.Dispose(isDisposing);
         }

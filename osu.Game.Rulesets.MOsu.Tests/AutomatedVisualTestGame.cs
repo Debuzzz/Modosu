@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using osu.Framework.Allocation;
+using osu.Framework.Audio;
 using osu.Framework.Bindables;
 using osu.Framework.Graphics.Containers;
 using osu.Framework.Platform;
@@ -24,6 +25,14 @@ namespace osu.Game.Rulesets.MOsu.Tests
         private DependencyContainer dependencies = null!;
 
         public AutomatedVisualTestGame(string? filter = null) => testFilter = filter;
+
+        [BackgroundDependencyLoader]
+        private void load()
+        {
+            // automated test runs are headless; keep them silent.
+            if (Dependencies.TryGet(out AudioManager audio))
+                audio.Volume.Value = 0;
+        }
 
         protected override Storage CreateStorage(GameHost host, Storage defaultStorage)
             => new TemporaryNativeStorage($"visual-test-{Guid.NewGuid()}");
@@ -69,6 +78,10 @@ namespace osu.Game.Rulesets.MOsu.Tests
         private int methodIndex;
         private TestScene? activeScene;
 
+        // the browser auto-loads its first test on startup, which would run in parallel with
+        // runSingleMethod. Only add it when at least one test actually needs the browser path.
+        private bool needsBrowser;
+
         private static readonly string SCREENSHOT_DIR = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "screenshots"));
 
         public ScreenshotTestRunner(TestBrowser browser, string? filter = null)
@@ -81,15 +94,20 @@ namespace osu.Game.Rulesets.MOsu.Tests
             if (playbackRateField?.GetValue(browser) is BindableDouble playbackRate)
                 playbackRate.Value = 2;
 
+            // Player / mod test scenes are excluded from full-suite runs (they are slow and usually
+            // interactive). When an explicit filter is given, trust it: the user asked for that test.
             filteredTestTypes = browser.TestTypes
-                .Where(t => !typeof(PlayerTestScene).IsAssignableFrom(t)
-                         && !typeof(Player).IsAssignableFrom(t)
-                         && !typeof(ModTestScene).IsAssignableFrom(t))
-                .Where(t => t.Name != "TestSceneOsuGame")
+                .Where(t => filter != null
+                    || (!typeof(PlayerTestScene).IsAssignableFrom(t)
+                     && !typeof(Player).IsAssignableFrom(t)
+                     && !typeof(ModTestScene).IsAssignableFrom(t)))
+                .Where(t => t.Name != "TestSceneOsuGame" || filter != null)
                 .Where(t => filter == null || matches(t, filter))
                 .ToList();
 
             int totalTests = filteredTestTypes.Sum(t => getTestMethods(t).Count());
+            needsBrowser = filter == null
+                || filteredTestTypes.Any(t => !getTestMethods(t).Any(m => methodMatches(m, filter)));
             if (filter != null)
                 Console.WriteLine($"[ScreenshotTestRunner] Filter: {filter} \u2192 {filteredTestTypes.Count} test types, {totalTests} test methods");
             else
@@ -130,7 +148,8 @@ namespace osu.Game.Rulesets.MOsu.Tests
         protected override void LoadComplete()
         {
             base.LoadComplete();
-            AddInternal(browser);
+            if (needsBrowser)
+                AddInternal(browser);
             Directory.CreateDirectory(SCREENSHOT_DIR);
             host.ExceptionThrown += e =>
             {
