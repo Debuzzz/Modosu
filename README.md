@@ -1,4 +1,10 @@
 [![Discord](https://discord.com/api/guilds/1537046465195548734/widget.png?style=shield)](https://discord.gg/aJ6JwG7H2w)
+
+# MOsu is discontinued
+mosu has been disabled in the latest tachyon release. 
+`string[] array = new string[7] { "plugin", "loader", "hikariii", "ocrs", "trainer", "inject", "mosu" };`
+
+so [2026.927.0](https://github.com/p-720/mosu/releases/tag/2026.927.0) will be the last working release and i will not be releasing updates moving forward.
 # MOsu
 
 osu! practice ruleset with unique mods and local PP tracking.
