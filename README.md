@@ -1,6 +1,6 @@
 [![Discord](https://discord.com/api/guilds/1537046465195548734/widget.png?style=shield)](https://discord.gg/aJ6JwG7H2w)
 
-# MOsu is discontinued
+# MOsu has been discontinued
 mosu has been disabled in the latest tachyon release. 
 `string[] array = new string[7] { "plugin", "loader", "hikariii", "ocrs", "trainer", "inject", "mosu" };`
 
