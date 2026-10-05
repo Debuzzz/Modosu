@@ -49,7 +49,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
             Realm.Write(r =>
             {
                 if (r.Find<RulesetInfo>(ruleset.RulesetInfo.ShortName) == null)
-                    r.Add(new RulesetInfo { OnlineID = 0, ShortName = ruleset.RulesetInfo.ShortName });
+                    r.Add(ruleset.RulesetInfo.Clone());
             });
         }
     }

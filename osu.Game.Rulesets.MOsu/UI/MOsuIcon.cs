@@ -12,7 +12,7 @@ using osu.Game.Online.API;
 using osu.Game.Rulesets.MOsu.Configuration;
 using osu.Game.Rulesets.MOsu.Database;
 using osu.Game.Rulesets.MOsu.Extensions;
-using osu.Game.Rulesets.MOsu.UI.Chat;
+using osu.Game.Rulesets.MOsu.Offline;
 using osu.Game.Rulesets.MOsu.UI.LocalUser;
 using osu.Game.Rulesets.MOsu.UI.Toolbar;
 using osuTK;
@@ -72,10 +72,8 @@ namespace osu.Game.Rulesets.MOsu.UI
             // ruleset selector re-renders (esp. on Android), which would kill a child-injected system
             // manager mid-poll. The game lives for the whole session.
             var manager = new MOsuSystemManager(ruleset);
-            var chatInjector = new ChatOverlayInjector();
-
+            game.Add(new OfflineSessionGuard());
             game.Add(manager);
-            game.Add(chatInjector);
         }
     }
 

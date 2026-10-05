@@ -14,6 +14,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModSpacingAdjust : Mod, IApplicableToBeatmap
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Spacing Adjust";
 
         public override LocalisableString Description => "Adjust object spacing to your liking.";

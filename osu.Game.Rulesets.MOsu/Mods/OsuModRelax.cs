@@ -24,6 +24,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
     // NOTE cant alias - crashes without
     public class OsuModRelax : ModRelax, IUpdatableByPlayfield, IApplicableToDrawableRuleset<OsuHitObject>, IApplicableToPlayer, IHasNoTimedInputs
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override LocalisableString Description => @"You don't need to click. Give your clicking/tapping fingers a break from the heat of things.";
 
         public override Type[] IncompatibleMods =>

@@ -19,6 +19,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModMissChallenge : ModFailCondition, IApplicableToPlayer
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Miss Challenge";
 
         public override string Acronym => "MC";
@@ -32,7 +37,6 @@ namespace osu.Game.Rulesets.MOsu.Mods
 
         public override bool RequiresConfiguration => false;
 
-        public override bool Ranked => false;
 
         public override IEnumerable<(LocalisableString setting, LocalisableString value)> SettingDescription
         {

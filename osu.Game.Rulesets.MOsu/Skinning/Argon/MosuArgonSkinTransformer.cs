@@ -23,42 +23,6 @@ namespace osu.Game.Rulesets.MOsu.Skinning.Argon
 
         public override Drawable? GetDrawableComponent(ISkinComponentLookup lookup)
         {
-            if (lookup is GlobalSkinnableContainerLookup containerLookup && containerLookup.Ruleset != null)
-            {
-                if (containerLookup.Lookup == GlobalSkinnableContainers.MainHUDComponents)
-                {
-                    return new DefaultSkinComponentsContainer(container =>
-                    {
-                        var starRating = container.OfType<ArgonStarRatingCounter>().FirstOrDefault();
-                        var performancePoints = container.OfType<ArgonPerformancePointsCounter>().FirstOrDefault();
-
-                        if (starRating != null)
-                        {
-                            starRating.Anchor = Anchor.TopRight;
-                            starRating.Origin = Anchor.TopRight;
-
-                            if (performancePoints != null)
-                            {
-                                starRating.Position = new Vector2(performancePoints.X, performancePoints.Y + performancePoints.DrawHeight + 10);
-                            }
-                            else
-                            {
-                                starRating.Position = new Vector2(-20, 120);
-                            }
-
-                            starRating.UsesFixedAnchor = true;
-                        }
-                    })
-                    {
-                        RelativeSizeAxes = Axes.Both,
-                        Children = new Drawable[]
-                        {
-                            new ArgonStarRatingCounter(),
-                        }
-                    };
-                }
-            }
-
             bool isPro = Skin is ArgonProSkin;
 
             switch (lookup)

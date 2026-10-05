@@ -24,7 +24,6 @@ using osu.Game.Rulesets.Mods;
 using osu.Game.Rulesets.Objects.Legacy;
 using osu.Game.Rulesets.MOsu.Configuration;
 using osu.Game.Rulesets.MOsu.Mods;
-using osu.Game.Rulesets.MOsu.Screens;
 using osu.Game.Rulesets.MOsu.Skinning.Argon;
 using osu.Game.Rulesets.MOsu.UI;
 using osu.Game.Rulesets.Osu.Beatmaps;
@@ -252,11 +251,11 @@ namespace osu.Game.Rulesets.MOsu
 
         public override IBeatmapVerifier CreateBeatmapVerifier() => new OsuBeatmapVerifier();
 
-        public override string Description => "MOsu!";
+        public override string Description => "MOsu Offline — entraînement local";
 
         public override string ShortName => SHORT_NAME;
 
-        public override string PlayingVerb => "MOsu! Clicking circles";
+        public override string PlayingVerb => "Entraînement local hors ligne";
 
         public override RulesetSettingsSubsection CreateSettings() => new MosuSettingsSubsection(this);
 
@@ -371,7 +370,6 @@ namespace osu.Game.Rulesets.MOsu
                     new UnstableRate(timedHitEvents),
                 }));
             }
-            children.Add(new SuggestedSongsPanel(score));
 
             return new[]
             {

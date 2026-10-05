@@ -24,7 +24,11 @@ namespace osu.Game.Rulesets.MOsu.Tests
         private readonly string? testFilter;
         private DependencyContainer dependencies = null!;
 
-        public AutomatedVisualTestGame(string? filter = null) => testFilter = filter;
+        public AutomatedVisualTestGame(string? filter = null)
+        {
+            testFilter = filter;
+            API = new osu.Game.Online.API.DummyAPIAccess();
+        }
 
         [BackgroundDependencyLoader]
         private void load()
@@ -153,6 +157,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
             Directory.CreateDirectory(SCREENSHOT_DIR);
             host.ExceptionThrown += e =>
             {
+                Environment.ExitCode = 1;
                 Console.WriteLine($"[ScreenshotTestRunner] Exception caught: {e.Message}");
                 return true;
             };
@@ -195,6 +200,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
                 if (!testTimedOut)
                 {
                     testTimedOut = true;
+                    Environment.ExitCode = 1;
                     Console.WriteLine($"[ScreenshotTestRunner] Timeout for {testName}");
                     takeScreenshotImmediate(testName);
                     Scheduler.AddDelayed(advanceToNext, time_between_tests);
@@ -211,7 +217,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
                 timeoutDelegate.Cancel();
                 if (testTimedOut) return;
                 Console.WriteLine($"[ScreenshotTestRunner] Completed: {testName}");
-                Scheduler.AddDelayed(advanceToNext, time_between_tests);
+                takeScreenshot(testName, () => Scheduler.AddDelayed(advanceToNext, time_between_tests))();
             });
         }
 
@@ -236,6 +242,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
                 if (!testTimedOut)
                 {
                     testTimedOut = true;
+                    Environment.ExitCode = 1;
                     Console.WriteLine($"[ScreenshotTestRunner] Timeout for {testName}");
                     takeScreenshotImmediate(testType.Name);
                     finishCurrentMethod();
@@ -267,13 +274,14 @@ namespace osu.Game.Rulesets.MOsu.Tests
                             timeoutDelegate.Cancel();
                             if (testTimedOut) return;
                             Console.WriteLine($"[ScreenshotTestRunner] Completed: {testName}");
-                            Scheduler.AddDelayed(finishCurrentMethod, time_between_tests);
+                            takeScreenshot(testName, () => Scheduler.AddDelayed(finishCurrentMethod, time_between_tests))();
                         }),
-                        (s, e) => Console.WriteLine($"[ScreenshotTestRunner] Step error in {testName}: {e.Message}"),
+                        (s, e) => { Environment.ExitCode = 1; Console.WriteLine($"[ScreenshotTestRunner] Step error in {testName}: {e.Message}"); },
                         null);
                 }
                 catch (Exception e)
                 {
+                    Environment.ExitCode = 1;
                     Console.WriteLine($"[ScreenshotTestRunner] Failed {testName}: {e.Message}");
                     timeoutDelegate.Cancel();
                     Scheduler.AddDelayed(finishCurrentMethod, time_between_tests);
@@ -311,6 +319,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
         {
             if (host.Window == null)
             {
+                Environment.ExitCode = 1;
                 Console.WriteLine($"[ScreenshotTestRunner] No window for {testName}");
                 return;
             }
@@ -326,6 +335,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
             }
             catch (Exception ex)
             {
+                Environment.ExitCode = 1;
                 Console.WriteLine($"[ScreenshotTestRunner] Screenshot failed for {testName}: {ex.Message}");
             }
         }
@@ -342,6 +352,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
             {
                 if (host.Window == null)
                 {
+                    Environment.ExitCode = 1;
                     onCompletion?.Invoke();
                     return;
                 }
@@ -359,6 +370,7 @@ namespace osu.Game.Rulesets.MOsu.Tests
                     }
                     catch (Exception ex)
                     {
+                        Environment.ExitCode = 1;
                         Console.WriteLine($"[ScreenshotTestRunner] Screenshot failed for {testName}: {ex.Message}");
                     }
 

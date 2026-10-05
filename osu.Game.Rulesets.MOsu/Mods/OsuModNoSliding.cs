@@ -24,6 +24,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModNoSliding : Mod, IApplicableAfterBeatmapConversion
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         private const int deathstream_length = 16;
 
         public override string Name => "No Sliding";

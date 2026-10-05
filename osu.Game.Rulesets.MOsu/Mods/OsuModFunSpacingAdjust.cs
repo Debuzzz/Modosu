@@ -17,6 +17,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModFunSpacingAdjust : Mod, IApplicableToBeatmap
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Fun Spacing";
 
         public override LocalisableString Description => "Spacing grows/shrinks over time.";

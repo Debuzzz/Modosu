@@ -35,6 +35,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
     /// </summary>
     public partial class OsuModRandomV2 : ModRandom, IApplicableToBeatmap, IApplicableToDrawableRuleset<OsuHitObject>
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
 
         public override string Name => "RandomV2";
         public override string Acronym => "RDV2";

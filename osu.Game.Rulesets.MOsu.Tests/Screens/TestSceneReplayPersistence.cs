@@ -10,8 +10,10 @@
 using System;
 using System.IO;
 using System.Linq;
+using System.Reflection;
 using NUnit.Framework;
 using osu.Framework.Allocation;
+using osu.Framework.Graphics.Containers;
 using osu.Framework.Extensions;
 using osu.Game.Beatmaps;
 using osu.Game.Beatmaps.ControlPoints;
@@ -76,6 +78,8 @@ namespace osu.Game.Rulesets.MOsu.Tests.Screens
             AddUntilStep("wait for replay file on score", () =>
                 realm.Run(r => r.Find<ScoreInfo>(scoreId)?.Files.Any(f => f.Filename.EndsWith(".osr")) ?? false));
 
+            assertSavedRulesetIdentity();
+
             AddAssert("watching the score yields a playable replay", () =>
                 scoreManager.GetScore(realm.Run(r => r.Find<ScoreInfo>(scoreId)!))
                           .Replay.Frames.Count > 0);
@@ -110,16 +114,24 @@ namespace osu.Game.Rulesets.MOsu.Tests.Screens
                 });
 
                 // Dispose immediately — the notification's scheduled attach can only run on a
-                // later frame, by which time the ruleset is disposed. (Direct dispose rather than
-                // a stack exit: an exit animates out over ~200ms, letting the async attach win
-                // the race. The disposed player left in the tree spams ObjectDisposedException
-                // into the log until the scene tears down — cosmetic only.)
+                // later frame, by which time the ruleset is disposed. Remove it from the drawable
+                // tree first, without disposing, to avoid repeatedly updating a disposed screen.
+                // A normal stack exit animates for ~200ms and would let the async attach win.
+                var parent = Player.Parent;
+                Assert.That(parent, Is.Not.Null);
+                typeof(CompositeDrawable).GetMethod("RemoveInternal", BindingFlags.Instance | BindingFlags.NonPublic,
+                    null, new[] { typeof(osu.Framework.Graphics.Drawable), typeof(bool) }, null)!
+                    .Invoke(parent, new object[] { Player, false });
                 Player.Dispose();
             });
 
             AddAssert("replay file attached to saved score", () =>
                 realm.Run(r => r.Find<ScoreInfo>(scoreId)?.Files.Any(f => f.Filename.EndsWith(".osr")) ?? false));
+            assertSavedRulesetIdentity();
         }
+
+        private void assertSavedRulesetIdentity() => AddAssert("saved score retains custom MOsu identity", () =>
+            realm.Run(r => r.Find<ScoreInfo>(scoreId)?.Ruleset is { ShortName: "mosu", OnlineID: -1 }));
 
         // Import a small beatmap through the standard BeatmapManager path (like
         // TestSceneAutoplayRandomV2 does with a real .osz). This registers the beatmap, set, and

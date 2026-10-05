@@ -74,6 +74,22 @@ namespace osu.Game.Rulesets.MOsu.Tests.Database
         }
 
         [Test]
+        public void TestImportNeverRequestsDownloads()
+        {
+            int requestCount = 0;
+            AddStep("import missing map with simulated logged-in API", () =>
+            {
+                var api = new DummyAPIAccess();
+                api.SetState(APIState.Online);
+                api.HandleRequest = _ => { requestCount++; return false; };
+                var processor = new CollectionImportProcessor(Realm, new TestNotificationOverlay(), api, beatmapManager, action => action());
+                _ = processor.Import("[{\"Name\":\"Offline missing map\",\"Beatmaps\":[{\"BeatmapSetId\":987654321,\"BeatmapMD5Hash\":\"offline-missing\",\"Scores\":[]}]}]");
+            });
+            AddAssert("collection imported", () => Realm.Run(r => r.All<BeatmapCollection>().Any(c => c.Name == "Offline missing map")));
+            AddAssert("no API requests", () => requestCount == 0);
+        }
+
+        [Test]
         public void TestCollectionsImported()
         {
             AddStep("import example collections", () =>
@@ -134,37 +150,6 @@ namespace osu.Game.Rulesets.MOsu.Tests.Database
                 if (collection == null) return false;
                 return collection.BeatmapMD5Hashes.Distinct().Count() == collection.BeatmapMD5Hashes.Count;
             });
-                    }
-
-        [Test]
-        public void TestDownloadRequiresLogin()
-        {
-            // Verify BeatmapModelDownloader does NOT check api.IsLoggedIn.
-            // It only checks api != null. This confirms the IsLoggedIn guard
-            // in BackgroundCollectionImportProcessor.startBackgroundDownload() is essential.
-            DummyAPIAccess dummyApi = null!;
-            BeatmapModelDownloader downloader = null!;
-            bool downloadBegan = false;
-
-            AddStep("create downloader with dummy API offline", () =>
-            {
-                dummyApi = new DummyAPIAccess();
-                dummyApi.SetState(APIState.Offline);
-
-                downloader = new BeatmapModelDownloader(beatmapManager, dummyApi);
-                downloader.DownloadBegan += _ => downloadBegan = true;
-            });
-
-            AddAssert("not logged in", () => !dummyApi.IsLoggedIn);
-
-            AddStep("try download while offline", () =>
-            {
-                downloader.Download(new APIBeatmapSet { OnlineID = 99756 });
-            });
-
-            // BeatmapModelDownloader attempts download regardless of login state.
-            // It only checks api != null, not api.IsLoggedIn.
-            AddAssert("download attempted despite offline (proves IsLoggedIn guard needed)", () => downloadBegan);
                     }
 
         [Test]

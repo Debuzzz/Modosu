@@ -21,40 +21,35 @@ namespace osu.Game.Rulesets.MOsu.Database
 {
     /// <summary>
     /// Shared collection import pipeline: parses collection JSON, imports collections to realm,
-    /// downloads missing beatmap sets (with mirror fallback), and optionally imports scores.
+    /// reports missing local beatmaps without downloading, and optionally imports scores.
     /// The only caller-specific concern is where the JSON comes from.
     /// </summary>
     public class CollectionImportProcessor
     {
         private readonly RealmAccess realm;
         private readonly INotificationOverlay notifications;
-        private readonly IAPIProvider api;
-        private readonly BeatmapManager beatmapManager;
         private readonly Action<Action> schedule;
 
         public CollectionImportProcessor(RealmAccess realm, INotificationOverlay notifications, IAPIProvider api, BeatmapManager beatmapManager, Action<Action> schedule)
         {
             this.realm = realm;
             this.notifications = notifications;
-            this.api = api;
-            this.beatmapManager = beatmapManager;
             this.schedule = schedule;
         }
 
         /// <summary>
         /// Imports collections from JSON: writes collections, imports scores for beatmaps already
-        /// present locally, then downloads missing beatmap sets (with mirror fallback) importing
-        /// each set's scores as soon as it lands.
-        /// <paramref name="onCollectionsImported"/> fires once collections are written (before any downloads).
+        /// present locally. Missing beatmaps are reported without any network request.
+        /// <paramref name="onCollectionsImported"/> fires once collections are written.
         /// Never throws — errors are posted as notifications.
         /// </summary>
-        public async Task Import(string json, Action? onCollectionsImported = null)
+        public Task Import(string json, Action? onCollectionsImported = null)
         {
             try
             {
                 // Reject structurally malformed files up front (e.g. a beatmap object pasted inside
                 // another beatmap's Scores array) so the user gets a clear error instead of a
-                // silently-missing beatmap that never reaches the download queue.
+                // silently-missing beatmap.
                 validateJsonStructure(json);
 
                 var transferObjects = JsonConvert.DeserializeObject<List<CollectionTransferObject>>(json);
@@ -62,7 +57,7 @@ namespace osu.Game.Rulesets.MOsu.Database
                 if (transferObjects == null || transferObjects.Count == 0)
                 {
                     schedule(() => notifications.Post(new SimpleErrorNotification { Text = "No collections found in file." }));
-                    return;
+                    return Task.CompletedTask;
                 }
 
                 // Step 1: Import collections
@@ -78,31 +73,16 @@ namespace osu.Game.Rulesets.MOsu.Database
                 });
 
                 // Step 2: Import scores for beatmaps already present locally, so they land
-                // immediately instead of waiting for any downloads to finish.
+                // immediately.
                 int importedScores = importCollectionScores(transferObjects);
 
-                // Step 3: Download missing beatmap sets; per-set imports skip the early
-                // existing-beatmap imports via the duplicate check.
-                var missingSetIds = CollectionSetDownloader.GetMissingSetIds(realm, allSetIds);
-
-                if (missingSetIds.Count > 0 && api.IsLoggedIn)
-                {
-                    var notification = new ProgressNotification
+                var missingSetIds = allSetIds.Where(id => !realm.Run(r =>
+                    r.All<BeatmapSetInfo>().Filter("DeletePending == false && OnlineID == $0", id).Any())).ToList();
+                if (missingSetIds.Count > 0)
+                    schedule(() => notifications.Post(new SimpleNotification
                     {
-                        State = ProgressNotificationState.Active,
-                        Text = "Downloading collection maps...",
-                    };
-                    notifications.Post(notification);
-
-                    importedScores += await DownloadSequential(
-                        missingSetIds,
-                        notification,
-                        transferObjects);
-                }
-                else if (missingSetIds.Count > 0)
-                {
-                    schedule(() => notifications.Post(new SimpleErrorNotification { Text = "Cannot download maps: not logged in." }));
-                }
+                        Text = $"Mode hors ligne : {missingSetIds.Count} cartes absentes. Importez leurs fichiers .osz localement."
+                    }));
 
                 if (importedScores > 0)
                     schedule(() => notifications.Post(new SimpleNotification { Text = $"Imported {importedScores} scores." }));
@@ -121,59 +101,7 @@ namespace osu.Game.Rulesets.MOsu.Database
                 Logger.Error(ex, "Failed to import collections.");
                 schedule(() => notifications.Post(new SimpleErrorNotification { Text = $"Failed to import collections: {ex.Message}" }));
             }
-        }
-
-        /// <summary>
-        /// Downloads <paramref name="setIds"/> one at a time (sequential), importing scores per set
-        /// as each one lands in the realm. Returns the number of scores imported.
-        /// </summary>
-        private async Task<int> DownloadSequential(
-            List<int> setIds,
-            ProgressNotification notification,
-            List<CollectionTransferObject> transferObjects)
-        {
-            var downloader = new CollectionSetDownloader(api, beatmapManager, notifications, realm, schedule);
-            int importedScores = 0;
-            int unavailable = 0;
-
-            for (int i = 0; i < setIds.Count; i++)
-            {
-                if (notification.State == ProgressNotificationState.Cancelled) break;
-
-                int setId = setIds[i];
-                string title = transferObjects.SelectMany(c => c.Beatmaps).FirstOrDefault(b => b.BeatmapSetId == setId)?.BeatmapTitle ?? $"Set {setId}";
-
-                schedule(() =>
-                {
-                    notification.Text = $"Downloading \"{title}\" ({i + 1}/{setIds.Count})...";
-                    notification.Progress = (float)i / setIds.Count;
-                });
-
-                if (!await downloader.DownloadSet(setId))
-                {
-                    unavailable++;
-                    continue;
-                }
-
-                importedScores += importCollectionScores(transferObjects, setId);
-
-                schedule(() =>
-                {
-                    notification.Text = $"Downloaded \"{title}\" ({i + 1}/{setIds.Count})...";
-                    notification.Progress = (float)(i + 1) / setIds.Count;
-                });
-            }
-
-            schedule(() =>
-            {
-                notification.Text = $"Downloaded {setIds.Count - unavailable} maps.";
-                if (unavailable > 0)
-                    notification.Text += $" ({unavailable} unavailable)";
-                notification.Progress = 1;
-                notification.State = ProgressNotificationState.Completed;
-            });
-
-            return importedScores;
+            return Task.CompletedTask;
         }
 
         /// <summary>

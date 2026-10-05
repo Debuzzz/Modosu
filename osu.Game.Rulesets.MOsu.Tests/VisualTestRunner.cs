@@ -19,13 +19,14 @@ namespace osu.Game.Rulesets.MOsu.Tests
             if (filterIndex >= 0 && filterIndex + 1 < args.Length)
                 filter = args[filterIndex + 1];
 
-            using (DesktopGameHost host = Host.GetSuitableDesktopHost(@"osu"))
+            // Framework caches (including fonts) must also stay outside the user's osu! data.
+            using (DesktopGameHost host = Host.GetSuitableDesktopHost(@"mosu-offline-tests", new HostOptions { PortableInstallation = true }))
             {
                 if (auto)
                     host.Run(new AutomatedVisualTestGame(filter));
                 else
                     host.Run(new OsuTestBrowser());
-                return 0;
+                return Environment.ExitCode;
             }
         }
     }

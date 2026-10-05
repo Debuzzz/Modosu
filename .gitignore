@@ -12,3 +12,6 @@ result-man
 scores_to_keep.txt
 screenshots/
 /*.json
+/manager/package/
+/manager/tests/firewall-result.json
+/artifacts/

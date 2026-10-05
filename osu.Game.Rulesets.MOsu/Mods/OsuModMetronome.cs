@@ -11,6 +11,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModMetronome : Mod, IApplicableToDrawableRuleset<OsuHitObject>
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Metronome";
 
         public override LocalisableString Description => "Plays a metronome tick on every beat, with a higher-pitched accent on the downbeat.";

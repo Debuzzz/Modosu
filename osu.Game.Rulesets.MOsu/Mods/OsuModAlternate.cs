@@ -12,12 +12,16 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModAlternate : InputBlockingMod
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => @"Alternate";
         public override string Acronym => @"AL";
         public override LocalisableString Description => @"Don't use the same key twice in a row!";
         public override IconUsage? Icon => OsuIcon.ModAlternate;
         public override Type[] IncompatibleMods => base.IncompatibleMods.Concat(new[] { typeof(OsuModSingleTap) }).ToArray();
-        public override bool Ranked => true;
 
         protected override bool CheckValidNewAction(OsuAction action) => LastAcceptedAction != action;
     }

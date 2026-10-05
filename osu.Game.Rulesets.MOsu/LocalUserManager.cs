@@ -388,7 +388,7 @@ namespace osu.Game.Rulesets.MOsu
                     CoverUrl = localUser?.CoverUrl ?? "",
                     Statistics = new UserStatistics
                     {
-                        IsRanked = true,
+                        IsRanked = false,
                         PP = (decimal)currentTotalPP,
                         Accuracy = accuracy,
                         GlobalRank = (int)currentTotalPP,

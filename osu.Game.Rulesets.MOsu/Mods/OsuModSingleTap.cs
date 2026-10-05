@@ -12,12 +12,16 @@ namespace osu.Game.Rulesets.MOsu.Mods
 {
     public class OsuModSingleTap : InputBlockingMod
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => @"Single Tap";
         public override string Acronym => @"SG";
         public override IconUsage? Icon => OsuIcon.ModSingleTap;
         public override LocalisableString Description => @"You must only use one key!";
         public override Type[] IncompatibleMods => base.IncompatibleMods.Concat(new[] { typeof(OsuModAlternate) }).ToArray();
-        public override bool Ranked => true;
 
         protected override bool CheckValidNewAction(OsuAction action) => LastAcceptedAction == null || LastAcceptedAction == action;
     }

@@ -20,6 +20,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
     // NOTE cant alias - crashes without
     public class OsuModAutopilot : Mod, IUpdatableByPlayfield, IApplicableToDrawableRuleset<OsuHitObject>
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Autopilot";
         public override string Acronym => "AP";
         public override IconUsage? Icon => OsuIcon.ModAutopilot;

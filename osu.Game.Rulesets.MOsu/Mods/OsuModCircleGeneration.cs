@@ -25,6 +25,11 @@ namespace osu.Game.Rulesets.MOsu.Mods
     /// </summary>
     public partial class OsuModCircleGeneration : Mod, IApplicableToBeatmap
     {
+        public override bool Ranked => false;
+        public override bool AlwaysValidForSubmission => false;
+        public override bool ValidForMultiplayer => false;
+        public override bool ValidForMultiplayerAsFreeMod => false;
+
         public override string Name => "Circle Generation";
         public override string Acronym => "CG";
         public override ModType Type => ModType.Conversion;
