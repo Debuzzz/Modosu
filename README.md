@@ -1,7 +1,7 @@
 [![Discord](https://discord.com/api/guilds/1537046465195548734/widget.png?style=shield)](https://discord.gg/aJ6JwG7H2w)
 
 # MOsu has been discontinued
-mosu has been disabled in the latest tachyon release. 
+mosu ruleset has been disabled/blocked in the latest tachyon/lazer release.  
 `string[] array = new string[7] { "plugin", "loader", "hikariii", "ocrs", "trainer", "inject", "mosu" };`
 
 so [2026.927.0](https://github.com/p-720/mosu/releases/tag/2026.927.0) (but just to be safe you probably shouldn't be using it either) will be the last working release and i will not be releasing updates moving forward.
