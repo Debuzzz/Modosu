@@ -1,6 +1,6 @@
 ﻿param([string] $OutputPath)
 $ErrorActionPreference = 'Stop'
-Import-Module (Join-Path $PSScriptRoot '..\MOsuOffline.Core.psm1') -Force
+Import-Module (Join-Path $PSScriptRoot '..\ModosuOffline.Core.psm1') -Force
 function Assert-True($Condition, [string] $Message) { if (!$Condition) { throw $Message } }
 function Assert-Throws([scriptblock] $Action) {
     $failed = $false
@@ -14,19 +14,28 @@ function Test-Case([string] $Name, [scriptblock] $Body) {
     [IO.Directory]::CreateDirectory((Join-Path $caseDir 'lazer\current')) | Out-Null
     [IO.Directory]::CreateDirectory((Join-Path $caseDir 'package')) | Out-Null
     [IO.File]::WriteAllText((Join-Path $caseDir 'lazer\current\osu!.exe'), 'fake-executable')
-    [IO.File]::WriteAllText((Join-Path $caseDir 'package\osu.Game.Rulesets.MOsu.dll'), 'test-dll')
-    $script:context = New-OfflineContext (Join-Path $caseDir 'lazer') (Join-Path $caseDir 'data') (Join-Path $caseDir 'package\osu.Game.Rulesets.MOsu.dll') (Join-Path $caseDir 'vault')
+    [IO.File]::WriteAllText((Join-Path $caseDir 'package\osu.Game.Rulesets.Modosu.dll'), 'test-dll')
+    $script:context = New-OfflineContext (Join-Path $caseDir 'lazer') (Join-Path $caseDir 'data') (Join-Path $caseDir 'package\osu.Game.Rulesets.Modosu.dll') (Join-Path $caseDir 'vault')
     $script:ops = @{
         AssertClosed = { param($c) if ($script:state.Running) { throw 'Processus actif.' } }
         Block = { param($c) if ($script:state.Failure -in @('Permission', 'FirewallDisabled')) { throw 'Protection refusee.' }; $script:state.Blocked = $true; $script:state.Events.Add('Block') }
         Verify = { param($c) $script:state.VerifyCount++; if (!$script:state.Blocked -or $script:state.Failure -eq ('Verify' + $script:state.VerifyCount)) { throw 'Verification refusee.' }; $script:state.Events.Add('Verify') }
-        Unblock = { param($c) Assert-True (!(Test-Path -LiteralPath $c.DllPath)) 'Deblocage avant retrait DLL'; if ($script:state.Failure -eq 'Unblock') { throw 'Echec retrait regles.' }; $script:state.Blocked = $false; $script:state.Events.Add('Unblock') }
+        Unblock = { param($c) Assert-True (!(Test-Path -LiteralPath $c.DllPath) -and !(Test-Path -LiteralPath $c.LegacyDllPath)) 'Deblocage avant retrait DLL'; if ($script:state.Failure -eq 'Unblock') { throw 'Echec retrait regles.' }; $script:state.Blocked = $false; $script:state.Events.Add('Unblock') }
     }
     & $Body
     $script:passed++
     Write-Host "PASS $Name"
 }
-$testRoot = Join-Path ([IO.Path]::GetTempPath()) ('MOsuOffline-tests-' + [Guid]::NewGuid().ToString('N'))
+$testRoot = Join-Path ([IO.Path]::GetTempPath()) ('ModosuOffline-tests-' + [Guid]::NewGuid().ToString('N'))
+function Initialize-LegacyInstallation {
+    [IO.Directory]::CreateDirectory($context.RulesetsDir) | Out-Null
+    [IO.File]::WriteAllText($context.LegacyDllPath, 'legacy-owned-dll')
+    $context.RuleGroup = $context.RuleGroup.Replace('ModosuOffline-', 'MOsuOffline-')
+    Save-OfflineState $context 'Offline' (Get-FileHash -LiteralPath $context.LegacyDllPath).Hash
+    $script:context = New-OfflineContext $context.InstallDir $context.DataDir $context.PackagePath $context.VaultDir
+    Assert-True ($context.RuleGroup.StartsWith('MOsuOffline-')) 'Anciennes regles abandonnees'
+    $state.Blocked = $true
+}
 [IO.Directory]::CreateDirectory($testRoot) | Out-Null
 try {
     Test-Case 'Bascule repetee sans perte de donnees' {
@@ -113,8 +122,8 @@ try {
             Assert-True (!(Test-Path -LiteralPath $context.DllPath) -and !$state.Blocked) 'Recuperation impossible'
         }
     }
-    Test-Case 'Copie supplementaire MOsu detectee sans execution' {
-        $dll = Join-Path $PSScriptRoot '..\..\osu.Game.Rulesets.MOsu\bin\Release\net10.0\osu.Game.Rulesets.MOsu.dll'
+    Test-Case 'Copie supplementaire Modosu detectee sans execution' {
+        $dll = Join-Path $PSScriptRoot '..\..\osu.Game.Rulesets.Modosu\bin\Release\net10.0\osu.Game.Rulesets.Modosu.dll'
         [IO.Directory]::CreateDirectory($context.RulesetsDir) | Out-Null
         $extra = Join-Path $context.RulesetsDir 'osu.Game.Rulesets.OtherName.dll'
         Copy-Item -LiteralPath $dll -Destination $extra
@@ -122,13 +131,48 @@ try {
         Assert-Throws { Invoke-OfflineTransition $context Online $ops }
         Assert-True (Test-Path -LiteralPath $extra) 'Copie non geree modifiee'
     }
+    Test-Case 'Migration MOsu vers Modosu sans deblocage' {
+        Initialize-LegacyInstallation
+        $oldHash = (Get-OfflineState $context).DllHash
+        Invoke-OfflineTransition $context Offline $ops
+        Assert-True ($state.Blocked -and (Test-Path -LiteralPath $context.DllPath) -and !(Test-Path -LiteralPath $context.LegacyDllPath)) 'Migration incomplete'
+        Assert-True (Test-Path -LiteralPath (Join-Path $context.VaultDir ('parked-' + $oldHash + '.dll'))) 'Ancienne DLL non sauvegardee'
+        $script:context = New-OfflineContext $context.InstallDir $context.DataDir $context.PackagePath $context.VaultDir
+        Assert-True ($context.RuleGroup.StartsWith('MOsuOffline-')) 'Ancien groupe perdu apres migration'
+        Invoke-OfflineTransition $context Online $ops
+        Assert-True (!$state.Blocked) 'Ancien blocage non retire'
+    }
+    Test-Case 'Retour en ligne depuis ancienne installation geree' {
+        Initialize-LegacyInstallation
+        Invoke-OfflineTransition $context Online $ops
+        Assert-True (!(Test-Path -LiteralPath $context.LegacyDllPath) -and !$state.Blocked) 'Ancienne installation non retiree'
+    }
+    Test-Case 'Ancienne DLL sans journal refusee' {
+        [IO.Directory]::CreateDirectory($context.RulesetsDir) | Out-Null
+        [IO.File]::WriteAllText($context.LegacyDllPath, 'unknown-legacy-dll')
+        Assert-Throws { Invoke-OfflineTransition $context Offline $ops }
+        Assert-Throws { Invoke-OfflineTransition $context Online $ops }
+        Assert-True ((Get-Content -LiteralPath $context.LegacyDllPath -Raw) -eq 'unknown-legacy-dll') 'Ancienne DLL tierce modifiee'
+    }
+    foreach ($checkpoint in @('LegacyParked', 'LegacyRemoved')) {
+        Test-Case "Interruption migration apres $checkpoint" {
+            Initialize-LegacyInstallation
+            $script:failAt = $checkpoint
+            $ops.Checkpoint = { param($name) if ($name -eq $script:failAt) { throw 'Interruption migration injectee.' } }
+            Assert-Throws { Invoke-OfflineTransition $context Offline $ops }
+            Assert-True $state.Blocked 'Migration interrompue a debloque le reseau'
+            $ops.Remove('Checkpoint')
+            Invoke-OfflineTransition $context Online $ops
+            Assert-True (!(Test-Path -LiteralPath $context.LegacyDllPath) -and !(Test-Path -LiteralPath $context.DllPath) -and !$state.Blocked) 'Recuperation migration impossible'
+        }
+    }
     if ($OutputPath) {
-        $report = @{ Passed = $passed; Success = $true; Utc = [DateTime]::UtcNow.ToString('o'); CoreSha256 = (Get-FileHash (Join-Path $PSScriptRoot '..\MOsuOffline.Core.psm1')).Hash }
+        $report = @{ Passed = $passed; Success = $true; Utc = [DateTime]::UtcNow.ToString('o'); CoreSha256 = (Get-FileHash (Join-Path $PSScriptRoot '..\ModosuOffline.Core.psm1')).Hash }
         [IO.File]::WriteAllText([IO.Path]::GetFullPath($OutputPath), ($report | ConvertTo-Json), [Text.UTF8Encoding]::new($false))
     }
     Write-Host "$passed tests de transition reussis (operations reseau simulees)."
 } finally {
     $resolved = (Resolve-Path -LiteralPath $testRoot).ProviderPath
-    if ($resolved -ne [IO.Path]::GetFullPath($testRoot) -or !(Split-Path $resolved -Leaf).StartsWith('MOsuOffline-tests-')) { throw 'Nettoyage temporaire refuse.' }
+    if ($resolved -ne [IO.Path]::GetFullPath($testRoot) -or !(Split-Path $resolved -Leaf).StartsWith('ModosuOffline-tests-')) { throw 'Nettoyage temporaire refuse.' }
     Remove-Item -LiteralPath $resolved -Recurse -Force
 }
