@@ -12,20 +12,20 @@ See [LOCAL.md](LOCAL.md) for paths to the full osu! and osu!framework source tre
 **Always run tests**
 
 1. Run `dotnet build` to catch compile errors.
-2. Run visual tests: `DISPLAY=:99 dotnet run --project osu.Game.Rulesets.MOsu.Tests/osu.Game.Rulesets.MOsu.Tests.csproj -- --auto`
+2. Run visual tests: `DISPLAY=:99 dotnet run --project osu.Game.Rulesets.Modosu.Tests/osu.Game.Rulesets.Modosu.Tests.csproj -- --auto`
 5. You can add --filter "TestName" to only run one test
 
 ## Release Build
 
 ```sh
-dotnet build osu.Game.Rulesets.MOsu/osu.Game.Rulesets.MOsu.csproj -c Release
+dotnet build osu.Game.Rulesets.Modosu/osu.Game.Rulesets.Modosu.csproj -c Release
 ```
 Dont do dotnet run with -c Release though
 
 ## Key conventions
 
-- Global type aliases in `osu.Game.Rulesets.MOsu/GlobalTypeAliases.cs` redirect to osu! core types — check there before adding new files
-- Realm models in `osu.Game.Rulesets.MOsu/Models/` use `[assembly: Explicit]` registration
+- Global type aliases in `osu.Game.Rulesets.Modosu/GlobalTypeAliases.cs` redirect to osu! core types — check there before adding new files
+- Realm models in `osu.Game.Rulesets.Modosu/Models/` use `[assembly: Explicit]` registration
 
 ## Running visual tests
 
@@ -36,7 +36,7 @@ Automated visual test runner generates one screenshot per test scene.
 Xvfb :99 -screen 0 1280x720x24 &
 
 # Run tests (generates screenshots/ directory)
-DISPLAY=:99 dotnet run --project osu.Game.Rulesets.MOsu.Tests/osu.Game.Rulesets.MOsu.Tests.csproj -- --auto
+DISPLAY=:99 dotnet run --project osu.Game.Rulesets.Modosu.Tests/osu.Game.Rulesets.Modosu.Tests.csproj -- --auto
 ```
 
 Each test scene file = one `[Test]` method = one screenshot. No multi-method test files.
